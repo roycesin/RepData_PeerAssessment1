@@ -4,7 +4,7 @@ output:
   html_document:
     keep_md: true
 ---
-```{r setoptions, echo=FALSE}
+```{r setoptions, echo=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
