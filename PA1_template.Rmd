@@ -4,22 +4,100 @@ output:
   html_document:
     keep_md: true
 ---
-
+```{r setoptions, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## Loading and preprocessing the data
 
+Let's load our libraries and data
+```{r}
+library(ggplot2)
+library(lattice)
+library(gridExtra)
+library(dplyr)
+df <- read.csv("activity.csv")
+```
+  
+Now for some initial exploration
+```{r}
+head(df)
+str(df)
+dim(df)
+```
 
+The date variable is factor, lets convert it to a date. 
+
+```{r}
+df$date <- as.Date(df$date, format = "%Y-%m-%d")
+
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+dfsum <- with(df,tapply(steps, date, sum, na.rm = T))
+qplot(dfsum, geom="histogram", binwidth=1000, xlab = "Number of Steps per Day", ylab="Count", main="Histogram for Steps per Day")
 
+cat("Mean Steps per Day", mean(dfsum))
+cat("Median Steps per Day", median(dfsum))
+
+```
+
+The mean total number of steps per day is **`r mean(dfsum)`**   
+The median total number of steps per day is **`r median(dfsum)`**
 
 ## What is the average daily activity pattern?
 
+```{r}
+im <- aggregate(steps~interval,data=df,FUN="mean", na.action = na.omit)
+ggplot(im, aes(x=interval, y=steps)) + 
+    geom_line() +
+    labs(x="Interval", y="Average Steps", title="Average Steps per Interval")
 
+cat("Max Interval", im[which.max(im$steps),]$interval)
+```
+  
+The 5 minute interval with most steps is interval **`r im[which.max(im$steps),]$interval`**
 
 ## Imputing missing values
 
+```{r}
+summary(df)
 
+```
+
+There are 2304 NA's in the steps columns out of 17,568. That is roughly **`r mean(is.na(df$steps))`** or 13%. 
+
+
+```{r}
+head(df[is.na(df$steps),])
+```
+Lets replace the NAs with the average
+```{r}
+ndf <- df
+ndf[is.na(ndf)] <- mean(df$steps,na.rm=T)
+```
+With the NA removed lets look at the data again.
+```{r}
+ndfsum <- with(ndf,tapply(steps, date, sum, na.rm = T))
+p1 <- qplot(dfsum, geom="histogram", binwidth=1000, xlab = "Number of Steps per Day", ylab="Count", main="Histogram for Steps per Day")
+p2 <- qplot(ndfsum, geom="histogram", binwidth=1000, xlab = "Number of Steps per Day", ylab="Count", main="Histogram for Steps per Day no NAs")
+grid.arrange(p1, p2, nrow = 1)
+
+cat("Mean Steps per Day", mean(dfsum), " with no NAs ", mean(ndfsum))
+cat("Median Steps per Day", median(dfsum), " with no NAs ", median(ndfsum))
+
+```
+
+The new mean is `r mean(ndfsum)` which is the same as the median `r median(ndfsum)`
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+ndf <- tbl_df(ndf)
+ndf <- ndf %>% mutate(wkdy = factor(case_when( weekdays(ndf$date) %in% c("Sunday","Saturday") ~ "weekend", TRUE ~ "weekday")))
+ndfp <- aggregate(steps~interval + wkdy, data=ndf, FUN="mean")
+with(ndfp,xyplot(steps~interval | wkdy, type="l", ylim=c(),scales=list(y=list(relation="free")),layout=c(1,2)))
+
+```
